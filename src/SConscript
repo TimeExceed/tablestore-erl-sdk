@@ -1,0 +1,11 @@
+# -*- python -*-
+Import('env')
+
+hrls = env.Install('$ERLANG_HEADER', env.Glob('*.hrl'))
+
+beams = env.erlc(env.Glob('*.erl'))
+env.Depends(beams, hrls)
+
+dials = env.dialyzer(env.Glob('*.erl'))
+env.Depends(dials, hrls)
+

@@ -1,0 +1,7 @@
+# -*- python -*-
+Import('env')
+
+env.erlc(env.Glob('*.erl'))
+
+env.subDir('unittest')
+env.subDir('functiontest')

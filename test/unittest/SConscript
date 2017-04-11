@@ -1,0 +1,8 @@
+# -*- python -*-
+Import('env')
+
+env.Alias('TEST',
+          env.Install('.',
+                      ['../testa.beam',
+                       env.Glob('../../src/*.beam'),
+                       '../../src/ots.hrl']))
