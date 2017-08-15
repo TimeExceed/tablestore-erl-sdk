@@ -339,9 +339,12 @@ validate_(X) when is_record(X, ots_TableOptions) ->
                    undefined -> ok;
                    Y ->
                        TTL = chrono:toUsec(Y),
+                       MaxInt32 = maxInt32(),
                        if TTL =< 0 -> {error, "TimeToLive must be positive."};
                           TTL rem 1000000 /= 0 -> 
                                {error, "TimeToLive must be integral multiple of seconds."};
+                          TTL div 1000000 > MaxInt32 ->
+                               {error, "TimeToLive overflows int32."};
                           true -> ok
                        end
                end
@@ -350,7 +353,9 @@ validate_(X) when is_record(X, ots_TableOptions) ->
                case X#ots_TableOptions.maxVersions of
                    undefined -> ok;
                    Y ->
+                       MaxInt32 = maxInt32(),
                        if Y =< 0 -> {error, "MaxVersions must be positive."};
+                          Y > MaxInt32 -> {error, "MaxVersions overflows int32."};
                           true -> ok
                        end
                end
@@ -360,10 +365,13 @@ validate_(X) when is_record(X, ots_TableOptions) ->
                    undefined -> ok;
                    Y ->
                        Dev = chrono:toUsec(Y),
+                       MaxInt64 = maxInt64(),
                        if Dev =< 0 -> 
                                {error, "MaxTimeDeviation must be positive."};
                           Dev rem 1000000 /= 0 ->
                                {error, "MaxTimeDeviation must be integral multiple of seconds."};
+                          Dev div 1000000 > MaxInt64 ->
+                               {error, "MaxTimeDeviation overflows int64."};
                           true -> ok
                        end
                end
@@ -503,3 +511,8 @@ toPb_ReservedThroughput(ApiCapacityUnit) ->
              end,
     #'ReservedThroughput'{
        capacity_unit = toPb_CapacityUnit(RealCu)}.
+
+maxInt32() -> 2147483647.
+minInt64() -> -18446744073709551616.
+maxInt64() -> 18446744073709551615.
+     
