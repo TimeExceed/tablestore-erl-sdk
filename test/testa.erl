@@ -40,7 +40,8 @@ is(Fn, ExpVal) ->
     fun(CaseName) ->
             RealVal = Fn(CaseName),
             if RealVal =:= ExpVal -> ok;
-               true -> {error, io_lib:format("Expect=~p Got=~p", [ExpVal, RealVal])}
+               true -> {error, 
+                        lists:flatten(io_lib:format("Expect=~p~nGot=~p", [ExpVal, RealVal]))}
             end
     end.
 
@@ -50,7 +51,8 @@ is(Fn, ExpVal, Tb) ->
                fun(X) ->
                        RealVal = Fn(CaseName, X),
                        if RealVal =:= ExpVal -> ok;
-                          true -> {error, io_lib:format("Expect=~p Got=~p", [ExpVal, RealVal])}
+                          true -> {error, 
+                                   lists:flatten(io_lib:format("Expect=~p~nGot=~p", [ExpVal, RealVal]))}
                        end
                end)
     end.
@@ -62,7 +64,8 @@ eq(TrialFn, OracleFn, Tb) ->
                        RealVal = TrialFn(CaseName, In),
                        ExpVal = OracleFn(CaseName, In),
                        if RealVal =:= ExpVal -> ok;
-                          true -> {error, io_lib:format("Expect=~p Got=~p Input=~p", [ExpVal, RealVal, In])}
+                          true -> {error, 
+                                   lists:flatten(io_lib:format("Expect=~p~nGot=~p~nInput=~p", [ExpVal, RealVal, In]))}
                        end
                end)
     end.
@@ -101,7 +104,7 @@ main(Args, Cases) ->
                             case Case(Arg) of
                                 ok -> halt(0);
                                 {error, Msg} -> 
-                                    io:format(standard_error, "Case fail: ~p~n", [Msg]),
+                                    io:format(standard_error, "Case fail:~n~s~n", [Msg]),
                                     halt(1)
                             end
                     end

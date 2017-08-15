@@ -70,6 +70,14 @@
 -record(ots_DeleteTableResponse, {
           requestId :: string()}).
 
+-record(ots_DescribeTableRequest, {
+          name :: string()}).
+-record(ots_DescribeTableResponse, {
+          meta :: #ots_TableMeta{},
+          options :: #ots_TableOptions{},
+          status :: active | inactive | loading | unloading | updating,
+          shardSplitPoints}).
+
 -record(ots_Client, {
           shutdown :: fun(() -> ok),
           listTable :: fun((#ots_ListTableRequest{}) -> 
@@ -77,5 +85,7 @@
           createTable :: fun((#ots_CreateTableRequest{}) -> 
                                     {ok, #ots_CreateTableResponse{}} | {error, #ots_Error{}}),
           deleteTable :: fun((#ots_DeleteTableRequest{}) ->
-                                    {ok, #ots_DeleteTableResponse{}} | {error, #ots_Error{}})}).
+                                    {ok, #ots_DeleteTableResponse{}} | {error, #ots_Error{}}),
+          describeTable :: fun((#ots_DescribeTableRequest{}) ->
+                                      {ok, #ots_DescribeTableResponse{}} | {error, #ots_Error{}})}).
 

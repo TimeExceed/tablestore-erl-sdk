@@ -25,16 +25,15 @@
 -include_lib("stdlib/include/assert.hrl").
 -export([main/1]).
 
-main(Args) ->
-    Cases = #{
-      "ft_listTable" =>
+cases() ->
+    #{"ft_listTable" =>
           testa:verify(
             fun(_, OtsClient) ->
                     Result = ots:listTable(OtsClient, #ots_ListTableRequest{}),
                     io:format("~p~n", [Result]),
                     Result
             end,
-            fun(_, Res, _) ->
+            fun(CaseName, Res, _) ->
                     case Res of
                         {error, _} -> Res;
                         {ok, Resp} ->
@@ -48,14 +47,47 @@ main(Args) ->
                                end,
                                fun(_) ->
                                        Tables = Resp#ots_ListTableResponse.tables,
-                                       Any = lists:any(fun(X) -> X =:= "pet" end, Tables),
+                                       Any = lists:any(fun(X) -> X =:= CaseName end, Tables),
                                        if Any -> ok;
-                                          true -> {error, "\"pet\" is missing."}
+                                          true -> {error, 
+                                                   lists:flatten(io_lib:format("\"~s\" is missing.", [CaseName]))}
                                        end
                                end])
                     end
             end,
-            fun(X, Y) -> tb(X, Y) end)},
+            fun(X, Y) -> tb(X, Y) end),
+      "ft_describeTable" => 
+          testa:eq(
+            fun(CaseName, OtsClient) ->
+                    Result = ots:describeTable(OtsClient, #ots_DescribeTableRequest{name = CaseName}),
+                    io:format("~p~n", [Result]),
+                    Result
+            end,
+            fun(CaseName, _) ->
+                    {ok,
+                     #ots_DescribeTableResponse{
+                        meta = #ots_TableMeta{
+                                  name = CaseName,
+                                  schema = [#ots_PrimaryKeyColumnSchema{
+                                               name = "pkInt",
+                                               type = integer},
+                                            #ots_PrimaryKeyColumnSchema{
+                                               name = "pkStr",
+                                               type = string},
+                                            #ots_PrimaryKeyColumnSchema{
+                                               name = "pkBlob",
+                                               type = binary},
+                                            #ots_PrimaryKeyColumnSchema{
+                                               name = "pkAutoIncr",
+                                               type = integer,
+                                               option = autoIncr}]},
+                       options = #ots_TableOptions{
+                                   maxVersions = 1}}}
+            end,
+            fun(X, Y) -> tb(X, Y) end)}.
+
+main(Args) ->
+    Cases = cases(),
     testa:main(Args, Cases).
 
 extractCredential() ->
@@ -82,7 +114,7 @@ tb(CaseName, Case) ->
     {ok, OtsClient} = ots:newOtsClient(AccessPoint, Credential),
     CtRes = createTable(CaseName, OtsClient),
     case CtRes of
-        {error, _} -> CtRes;
+        {error, _} -> {error, lists:flatten(io_lib:format("~p", [CtRes]))};
         {ok, _} ->
             Result = Case(OtsClient),
             deleteTable(CaseName, OtsClient),

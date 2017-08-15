@@ -29,7 +29,7 @@
 -export([newAccessPoint/1, newAccessPoint/2]).
 -export([newOtsClient/2, shutdown/1]).
 -export([validate/1]).
--export([listTable/2, createTable/2, deleteTable/2]).
+-export([listTable/2, createTable/2, deleteTable/2, describeTable/2]).
 
 %%====================================================================
 %% API functions
@@ -86,7 +86,12 @@ newOtsClient(AccessPoint, Credential) ->
           #processor{
             path = "/DeleteTable",
             requestToPb = fun deleteTable_reqToPb/1,
-            responseFromPb = fun deleteTable_respFromPb/2}},
+            responseFromPb = fun deleteTable_respFromPb/2},
+      describeTable => 
+          #processor{
+            path = "/DescribeTable",
+            requestToPb = fun describeTable_reqToPb/1,
+            responseFromPb = fun describeTable_respFromPb/2}},
     inets:start(),
     InnerClient = #innerClient{
                      accessPoint=AccessPoint, 
@@ -96,7 +101,8 @@ newOtsClient(AccessPoint, Credential) ->
                 shutdown = fun() -> shutdown_(InnerClient) end,
                 listTable = fun(ApiReq) -> issue(InnerClient, ApiReq, listTable) end,
                 createTable = fun(ApiReq) -> issue(InnerClient, ApiReq, createTable) end,
-                deleteTable = fun(ApiReq) -> issue(InnerClient, ApiReq, deleteTable) end},
+                deleteTable = fun(ApiReq) -> issue(InnerClient, ApiReq, deleteTable) end,
+                describeTable = fun(ApiReq) -> issue(InnerClient, ApiReq, describeTable) end},
     {ok, Client}.
 
 -spec validate(any()) -> ok | {error, #ots_Error{}}.
@@ -122,11 +128,15 @@ createTable(Client, ApiReq) -> (Client#ots_Client.createTable)(ApiReq).
                          {ok, #ots_DeleteTableResponse{}} | {error, #ots_Error{}}.
 deleteTable(Client, ApiReq) -> (Client#ots_Client.deleteTable)(ApiReq).
 
+-spec describeTable(#ots_Client{}, #ots_DescribeTableRequest{}) ->
+                           {ok, #ots_DescribeTableResponse{}} | {error, #ots_Error{}}.
+describeTable(Client, ApiReq) -> (Client#ots_Client.describeTable)(ApiReq).
+
 %% Internal functions
 
 shutdown_(_) -> inets:stop().
 
--spec listTable_respFromPb([{string(), string()}], string()) -> 
+-spec listTable_respFromPb([{string(), string()}], binary()) -> 
                                   #ots_ListTableResponse{}.
 listTable_respFromPb(Headers, RespBody) ->
     PbResponse = ots_proto:decode_msg(RespBody, 'ListTableResponse'),
@@ -134,7 +144,7 @@ listTable_respFromPb(Headers, RespBody) ->
        requestId = getRequestId(Headers),
        tables = PbResponse#'ListTableResponse'.table_names}.
 
--spec createTable_reqToPb(#ots_CreateTableRequest{}) -> string().
+-spec createTable_reqToPb(#ots_CreateTableRequest{}) -> binary().
 createTable_reqToPb(ApiReq) ->
     ApiMeta = ApiReq#ots_CreateTableRequest.meta,
     ApiOptions = ApiReq#ots_CreateTableRequest.options,
@@ -145,23 +155,34 @@ createTable_reqToPb(ApiReq) ->
                table_options = toPb_TableOptionsInCreateTable(ApiOptions)},
     ots_proto:encode_msg(PbReq).
 
--spec createTable_respFromPb([{string(), string()}], string()) ->
+-spec createTable_respFromPb([{string(), string()}], binary()) ->
                                     #ots_CreateTableResponse{}.
 createTable_respFromPb(Headers, _) ->
     #ots_CreateTableResponse{
        requestId = getRequestId(Headers)}.
 
--spec deleteTable_reqToPb(#ots_DeleteTableRequest{}) -> string().
+-spec deleteTable_reqToPb(#ots_DeleteTableRequest{}) -> binary().
 deleteTable_reqToPb(ApiReq) ->
     PbReq = #'DeleteTableRequest'{
                table_name = ApiReq#ots_DeleteTableRequest.name},
     ots_proto:encode_msg(PbReq).
 
--spec deleteTable_respFromPb([{string(), string()}], string()) ->
+-spec deleteTable_respFromPb([{string(), string()}], binary()) ->
                                     #ots_DeleteTableResponse{}.
 deleteTable_respFromPb(Headers, _) ->
     #ots_DeleteTableResponse{
        requestId = getRequestId(Headers)}.
+
+-spec describeTable_reqToPb(#ots_DescribeTableRequest{}) -> binary().
+describeTable_reqToPb(ApiReq) ->
+    PbReq = #'DescribeTableRequest'{
+               table_name = ApiReq#ots_DescribeTableRequest.name},
+    ots_proto:encode_msg(PbReq).
+
+-spec describeTable_respFromPb([{string(), string()}], string()) ->
+                                      #ots_DescribeTableResponse{} | {error, #ots_Error{}}.
+describeTable_respFromPb(_, _) ->
+    #ots_DescribeTableResponse{}.
     
 issue(OtsClient, ApiReq, Action) ->
     Res = validate(ApiReq),
@@ -427,8 +448,15 @@ validate_(X) when is_record(X, ots_DeleteTableRequest) ->
        length(Y) =:= 0 ->
             {error, "Table name is required in a DeleteTableRequest."};
        true -> ok
+    end;
+validate_(X) when is_record(X, ots_DescribeTableRequest)-> 
+    Y = X#ots_DescribeTableRequest.name,
+    if ?CHECK_UNDEF(Y) ->
+            {error, "Table name is required in a DescribeTableRequest."};
+       length(Y) =:= 0 ->
+            {error, "Table name is required in a DescribeTableRequest."};
+       true -> ok
     end.
-
 
 -spec toPb_CapacityUnit(#ots_CapacityUnit{}) -> #'CapacityUnit'{}.
 toPb_CapacityUnit(Cu) ->
