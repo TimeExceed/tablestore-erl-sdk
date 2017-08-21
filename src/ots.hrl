@@ -23,7 +23,7 @@
 -record(ots_Credential, {
           accessKeyId :: string(), 
           accessKeySecret :: string(), 
-          securityToken :: undefined | string()}).
+          securityToken = none :: fntools:maybe(string())}).
 
 -record(ots_AccessPoint, {
           endpoint :: string(),
@@ -33,7 +33,7 @@
          httpStatus :: integer(),
          errorCode :: string(),
          message :: string(),
-         requestId :: string()}).
+         requestId = none :: fntools:maybe(string())}).
 
 -record(ots_ListTableRequest, {}).
 -record(ots_ListTableResponse, {
@@ -43,38 +43,41 @@
 -record(ots_PrimaryKeyColumnSchema, {
           name :: string(),
           type :: integer | string | binary,
-          option :: undefined | autoIncr}).
+          option = none :: fntools:maybe(autoIncr)}).
 
 -record(ots_TableMeta, {
           name :: string(),
           schema :: [#ots_PrimaryKeyColumnSchema{}]}).
 
 -record(ots_CapacityUnit, {
-          read :: undefined | integer(),
-          write :: undefined | integer()}).
+          read = none :: fntools:maybe(integer()),
+          write = none :: fntools:maybe(integer())}).
 
--record(ots_TableOptions, {
-          reservedThroughput :: undefined | #ots_CapacityUnit{},
-          timeToLive :: undefined | chrono:duration(),
-          maxVersions :: undefined | integer(),
-          maxTimeDeviation :: undefined | chrono:duration()}).
+-record(ots_TableOptionsForCreateTable, {
+          reservedThroughput = #ots_CapacityUnit{
+                                  read = 0,
+                                  write = 0} :: #ots_CapacityUnit{},
+          timeToLive = infinity :: chrono:duration() | infinity,
+          maxVersions = 1 :: integer(),
+          maxTimeDeviation = none :: fntools:maybe(chrono:duration())}).
 
 -record(ots_CreateTableRequest, {
           meta :: #ots_TableMeta{},
-          options :: #ots_TableOptions{}}).
+          options :: #ots_TableOptionsForCreateTable{}}).
 -record(ots_CreateTableResponse, {
-          requestId :: string()}).
+          requestId :: fntools:maybe(string())}).
 
 -record(ots_DeleteTableRequest, {
           name :: string()}).
 -record(ots_DeleteTableResponse, {
-          requestId :: string()}).
+          requestId :: fntools:maybe(string())}).
 
 -record(ots_DescribeTableRequest, {
           name :: string()}).
 -record(ots_DescribeTableResponse, {
+          requestId :: fntools:maybe(string()),
           meta :: #ots_TableMeta{},
-          options :: #ots_TableOptions{},
+          %% options :: #ots_TableOptions{},
           status :: active | inactive | loading | unloading | updating,
           shardSplitPoints}).
 

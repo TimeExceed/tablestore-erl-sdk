@@ -148,11 +148,11 @@ listTable_respFromPb(Headers, RespBody) ->
 createTable_reqToPb(ApiReq) ->
     ApiMeta = ApiReq#ots_CreateTableRequest.meta,
     ApiOptions = ApiReq#ots_CreateTableRequest.options,
-    ReservedThroughput = ApiOptions#ots_TableOptions.reservedThroughput,
+    ReservedThroughput = ApiOptions#ots_TableOptionsForCreateTable.reservedThroughput,
     PbReq = #'CreateTableRequest'{
                table_meta = toPb_TableMeta(ApiMeta),
                reserved_throughput = toPb_ReservedThroughput(ReservedThroughput),
-               table_options = toPb_TableOptionsInCreateTable(ApiOptions)},
+               table_options = toPb_TableOptionsForCreateTable(ApiOptions)},
     ots_proto:encode_msg(PbReq).
 
 -spec createTable_respFromPb([{string(), string()}], binary()) ->
@@ -265,7 +265,7 @@ headerDate(Headers) ->
 
 headerIfSts(Headers, Credential) ->
     case Credential#ots_Credential.securityToken of
-        undefined -> Headers;
+        none -> Headers;
         Sts -> [{"x-ots-ststoken", Sts} | Headers]
     end.
 
@@ -278,23 +278,21 @@ baseHeaders(OtsClient) ->
      {"User-Agent", "aliyun-tablestore-sdk-erlang/4.0.0"},
      {"Accept", "application/x.pb2"}].
 
-find([], _) -> undefined;
+
+find([], _) -> none;
 find([{K, V} | T], Key) -> 
     if K =:= Key -> V;
        true -> find(T, Key)
     end.
      
--spec getRequestId([{string(), string()}]) -> string().
+-spec getRequestId([{string(), string()}]) -> fntools:maybe(string()).
 
 getRequestId(Headers) ->
-    case find(Headers, "x-ots-requestid") of
-        undefined -> "";
-        X -> X
-    end.
+    find(Headers, "x-ots-requestid").
 
 validateResponse(Headers, Body) ->
     case find(Headers, "x-ots-contentmd5") of
-        undefined -> {error, 
+        none -> {error, 
                       error:newPredefined(corruptedResponse, 
                                           [{message, "no \"x-ots-contentmd5\" in response headers"}])};
         ExpectedDigest -> 
@@ -332,7 +330,7 @@ validate_(X) when is_record(X, ots_PrimaryKeyColumnSchema) ->
             {error, "\"type\" is required in PrimaryKeySchema."};
        Type =/= integer andalso Type =/= string andalso Type =/= binary -> 
             {error, "\"type\" of PrimaryKeySchema must be integer, string or binary."};
-       Option =/= undefined andalso Option =/= autoIncr ->
+       Option =/= none andalso Option =/= autoIncr ->
             {error, "\"option\" of PrimaryKeySchema must be either undefined or autoIncr."};
        true -> ok
     end;
@@ -346,18 +344,18 @@ validate_(X) when is_record(X, ots_TableMeta) ->
        true -> validate_(Schema)
     end;
 validate_(X) when is_record(X, ots_CapacityUnit) ->
-    if X#ots_CapacityUnit.read =/= undefined andalso X#ots_CapacityUnit.read < 0 ->
+    if X#ots_CapacityUnit.read =/= none andalso X#ots_CapacityUnit.read < 0 ->
             {error, "Read capacity unit must be nonnegative."};
-       X#ots_CapacityUnit.write =/= undefined andalso X#ots_CapacityUnit.write < 0 ->
+       X#ots_CapacityUnit.write =/= none andalso X#ots_CapacityUnit.write < 0 ->
             {error, "Write capacity unit must be nonnegative."};
        true -> ok
     end;
-validate_(X) when is_record(X, ots_TableOptions) -> 
+validate_(X) when is_record(X, ots_TableOptionsForCreateTable) -> 
     fntools:chain(
       X,
       [fun(_) ->
-               case X#ots_TableOptions.timeToLive of
-                   undefined -> ok;
+               case X#ots_TableOptionsForCreateTable.timeToLive of
+                   infinity -> ok;
                    Y ->
                        TTL = chrono:toUsec(Y),
                        MaxInt32 = maxInt32(),
@@ -371,19 +369,16 @@ validate_(X) when is_record(X, ots_TableOptions) ->
                end
        end,
        fun(_) ->
-               case X#ots_TableOptions.maxVersions of
-                   undefined -> ok;
-                   Y ->
-                       MaxInt32 = maxInt32(),
-                       if Y =< 0 -> {error, "MaxVersions must be positive."};
-                          Y > MaxInt32 -> {error, "MaxVersions overflows int32."};
-                          true -> ok
-                       end
+               Y = X#ots_TableOptionsForCreateTable.maxVersions,
+               MaxInt32 = maxInt32(),
+               if Y =< 0 -> {error, "MaxVersions must be positive."};
+                  Y > MaxInt32 -> {error, "MaxVersions overflows int32."};
+                  true -> ok
                end
        end,
        fun(_) ->
-               case X#ots_TableOptions.maxTimeDeviation of
-                   undefined -> ok;
+               case X#ots_TableOptionsForCreateTable.maxTimeDeviation of
+                   none -> ok;
                    Y ->
                        Dev = chrono:toUsec(Y),
                        MaxInt64 = maxInt64(),
@@ -398,10 +393,7 @@ validate_(X) when is_record(X, ots_TableOptions) ->
                end
        end,
        fun(_) ->
-               case X#ots_TableOptions.reservedThroughput of
-                   undefined -> ok;
-                   Y -> validate_(Y)
-               end
+               validate_(X#ots_TableOptionsForCreateTable.reservedThroughput)
        end]);
 validate_(X) when is_record(X, ots_CreateTableRequest) -> 
     fntools:chain(
@@ -423,23 +415,18 @@ validate_(X) when is_record(X, ots_CreateTableRequest) ->
        fun(_) ->
                Opts = X#ots_CreateTableRequest.options,
                ?assert(Opts =/= undefined),
+               Y = Opts#ots_TableOptionsForCreateTable.reservedThroughput,
                fntools:chain(
-                 Opts,
-                 [fun(_) -> 
-                          Y = Opts#ots_TableOptions.reservedThroughput,
-                          if Y =:= undefined -> ok;
-                             true -> 
-                                  fntools:chain(
-                                    Y,
-                                    [fun(_) ->
-                                             if Y#ots_CapacityUnit.read =:= undefined orelse Y#ots_CapacityUnit.write =:= undefined ->
-                                                     {error, "Both read and write capacity units are required."};
-                                                true -> ok
-                                             end
-                                     end,
-                                     fun(_) -> validate_(Y) end])
-                            end
-                  end])
+                 Y,
+                 [fun(_) ->
+                          R = Y#ots_CapacityUnit.read,
+                          W = Y#ots_CapacityUnit.write,
+                          if R =:= none orelse W =:= none ->
+                                  {error, "Both read and write capacity units are required."};
+                             true -> ok
+                          end
+                  end,
+                  fun(_) -> validate_(Y) end])
        end]);
 validate_(X) when is_record(X, ots_DeleteTableRequest) -> 
     Y = X#ots_DeleteTableRequest.name,
@@ -459,86 +446,80 @@ validate_(X) when is_record(X, ots_DescribeTableRequest)->
     end.
 
 -spec toPb_CapacityUnit(#ots_CapacityUnit{}) -> #'CapacityUnit'{}.
-toPb_CapacityUnit(Cu) ->
+toPb_CapacityUnit(From) ->
     fntools:chain(
       #'CapacityUnit'{},
-      [fun(X) ->
-               Read = Cu#ots_CapacityUnit.read,
+      [fun(To) ->
+               Read = From#ots_CapacityUnit.read,
                if Read =/= undefined ->
-                       X#'CapacityUnit'{read = Read};
-                  true -> X
+                       To#'CapacityUnit'{read = Read};
+                  true -> To
                end
        end,
-       fun(X) ->
-               Write = Cu#ots_CapacityUnit.write,
+       fun(To) ->
+               Write = From#ots_CapacityUnit.write,
                if Write =/= undefined ->
-                       X#'CapacityUnit'{write = Write};
-                  true -> X
+                       To#'CapacityUnit'{write = Write};
+                  true -> To
                end
        end]).
 
--spec toPb_TableOptionsInCreateTable(#ots_TableOptions{}) -> #'TableOptions'{}.
-toPb_TableOptionsInCreateTable(To) ->
+-spec toPb_TableOptionsForCreateTable(#ots_TableOptionsForCreateTable{}) -> #'TableOptions'{}.
+toPb_TableOptionsForCreateTable(From) ->
     fntools:chain(
       #'TableOptions'{},
-      [fun(X) ->
-               TTL = To#ots_TableOptions.timeToLive,
-               if TTL =/= undefined ->
-                       X#'TableOptions'{time_to_live = chrono:toUsec(TTL) div 1000000};
-                  true -> X#'TableOptions'{time_to_live = -1}
+      [fun(To) ->
+               TTL = From#ots_TableOptionsForCreateTable.timeToLive,
+               if TTL =:= infinity -> 
+                       To#'TableOptions'{time_to_live = -1};
+                  true -> 
+                       To#'TableOptions'{time_to_live = chrono:toUsec(TTL) div 1000000}
                end
        end,
-       fun(X) ->
-               MaxVersions = To#ots_TableOptions.maxVersions,
-               if MaxVersions =/= undefined ->
-                       X#'TableOptions'{max_versions = MaxVersions};
-                  true -> X
-               end
+       fun(To) ->
+               MaxVersions = From#ots_TableOptionsForCreateTable.maxVersions,
+               To#'TableOptions'{max_versions = MaxVersions}
        end,
-       fun(X) ->
-               Dev = To#ots_TableOptions.maxTimeDeviation,
-               if Dev =/= undefined ->
-                       X#'TableOptions'{deviation_cell_version_in_sec = chrono:toUsec(Dev) div 1000000};
-                  true -> X
+       fun(To) ->
+               Dev = From#ots_TableOptionsForCreateTable.maxTimeDeviation,
+               if Dev =/= none ->
+                       To#'TableOptions'{deviation_cell_version_in_sec = chrono:toUsec(Dev) div 1000000};
+                  true -> To
                end
        end]).
                        
 
 -spec toPb_TableMeta(#ots_TableMeta{}) -> #'TableMeta'{}.
-toPb_TableMeta(ApiMeta) ->
+toPb_TableMeta(From) ->
     #'TableMeta'{
-       table_name = ApiMeta#ots_TableMeta.name,
-       primary_key = [toPb_Schema(X) || X <- ApiMeta#ots_TableMeta.schema]}.
+       table_name = From#ots_TableMeta.name,
+       primary_key = [toPb_Schema(X) || X <- From#ots_TableMeta.schema]}.
 
 -spec toPb_Schema(#ots_PrimaryKeyColumnSchema{}) -> #'PrimaryKeySchema'{}.
-toPb_Schema(ApiSchema) -> 
+toPb_Schema(From) -> 
     fntools:chain(
       #'PrimaryKeySchema'{
-        name = ApiSchema#ots_PrimaryKeyColumnSchema.name},
-      [fun(X) ->
-               case ApiSchema#ots_PrimaryKeyColumnSchema.type of
+        name = From#ots_PrimaryKeyColumnSchema.name},
+      [fun(To) ->
+               case From#ots_PrimaryKeyColumnSchema.type of
                    integer ->
-                       X#'PrimaryKeySchema'{type = 'INTEGER'};
+                       To#'PrimaryKeySchema'{type = 'INTEGER'};
                    string ->
-                       X#'PrimaryKeySchema'{type = 'STRING'};
+                       To#'PrimaryKeySchema'{type = 'STRING'};
                    binary ->
-                       X#'PrimaryKeySchema'{type = 'BINARY'}
+                       To#'PrimaryKeySchema'{type = 'BINARY'}
                end
        end,
-       fun(X) ->
-               case ApiSchema#ots_PrimaryKeyColumnSchema.option of
-                   undefined -> X;
-                   autoIncr -> X#'PrimaryKeySchema'{option = 'AUTO_INCREMENT'}
+       fun(To) ->
+               case From#ots_PrimaryKeyColumnSchema.option of
+                   none -> To;
+                   autoIncr -> To#'PrimaryKeySchema'{option = 'AUTO_INCREMENT'}
                end
        end]).
                         
-toPb_ReservedThroughput(ApiCapacityUnit) ->
-    RealCu = if ApiCapacityUnit =:= undefined -> 
-                     #ots_CapacityUnit{read = 0, write = 0};
-                true -> ApiCapacityUnit
-             end,
+toPb_ReservedThroughput(From) ->
     #'ReservedThroughput'{
-       capacity_unit = toPb_CapacityUnit(RealCu)}.
+       capacity_unit = toPb_CapacityUnit(From)}.
 
 maxInt32() -> 2147483647.
 minInt64() -> -18446744073709551616.

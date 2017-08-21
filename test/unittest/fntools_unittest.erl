@@ -54,17 +54,17 @@ cases() ->
           testa:is(
             fun(_) ->
                     fntools:maybe_chain(
-                      undefined,
+                      none,
                       [fun(X) -> X + 1 end])
             end,
-            undefined),
+            none),
       "ut.fntools.maybe_chain.gothrough" =>
           testa:is(
             fun(_) ->
                     fntools:maybe_chain(
                       "1",
                       [fun(X) -> case string:to_integer(X) of
-                                     {error, _} -> undefined;
+                                     {error, _} -> none;
                                      {Y, _} -> Y
                                  end
                        end,
@@ -77,13 +77,13 @@ cases() ->
                     fntools:maybe_chain(
                       "a",
                       [fun(X) -> case string:to_integer(X) of
-                                     {error, _} -> undefined;
+                                     {error, _} -> none;
                                      {Y, _} -> Y
                                  end
                        end,
                        fun(X) -> X + 1 end])
             end,
-            undefined)}.
+            none)}.
     
 
 main(Args) ->

@@ -24,6 +24,9 @@
 
 -export([chain/2]).
 -export([maybe_chain/2]).
+-export_type([maybe/1]).
+
+-type maybe(T) :: T | none.
 
 -spec chain(any(), [fun((any()) -> any() | {error, any()})]) -> any() | {error, any()}.
 chain(X, []) -> X;
@@ -33,10 +36,10 @@ chain(X, [H|T]) ->
         Y -> chain(Y, T)
     end.
 
--spec maybe_chain(any() | undefined, [fun((any()) -> any() | undefined)]) -> any() | undefined.
+-spec maybe_chain(maybe(any()), [fun((any()) -> maybe(any()))]) -> maybe(any()).
 maybe_chain(X, []) -> X;
 maybe_chain(X, [H|T]) -> 
     case X of
-        undefined -> undefined;
-        Y -> maybe_chain(H(Y), T)
+        none -> none;
+        _ -> maybe_chain(H(X), T)
     end.

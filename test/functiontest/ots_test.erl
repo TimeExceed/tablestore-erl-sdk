@@ -80,9 +80,11 @@ cases() ->
                                             #ots_PrimaryKeyColumnSchema{
                                                name = "pkAutoIncr",
                                                type = integer,
-                                               option = autoIncr}]},
-                       options = #ots_TableOptions{
-                                   maxVersions = 1}}}
+                                               option = autoIncr}]}
+%% ,
+%%                        options = #ots_TableOptions{
+%%                                    maxVersions = 1}
+}}
             end,
             fun(X, Y) -> tb(X, Y) end)}.
 
@@ -142,7 +144,7 @@ makeCreateTableRequest(CaseName) ->
                            name = "pkAutoIncr",
                            type = integer,
                            option = autoIncr}]},
-    Opt = #ots_TableOptions{
+    Opt = #ots_TableOptionsForCreateTable{
             maxVersions = 1},
     #ots_CreateTableRequest{
        meta = Meta,

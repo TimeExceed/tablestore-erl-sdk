@@ -89,10 +89,10 @@ cases() ->
                        errorCode = "OTSParameterInvalid",
                        message = "Write capacity unit must be nonnegative.",
                        requestId = ""}}),
-      "ut.TableOptions.Validate_FractionalTTL" =>
+      "ut.TableOptionsForCreateTable.Validate_FractionalTTL" =>
           testa:is(
             fun(_) ->
-                    To = #ots_TableOptions{
+                    To = #ots_TableOptionsForCreateTable{
                             timeToLive = chrono:duration(1, usec)},
                     ots:validate(To)
             end,
@@ -101,10 +101,10 @@ cases() ->
                        errorCode = "OTSParameterInvalid",
                        message = "TimeToLive must be integral multiple of seconds.",
                        requestId = ""}}),
-      "ut.TableOptions.Validate_NonpositiveTTL" =>
+      "ut.TableOptionsForCreateTable.Validate_NonpositiveTTL" =>
           testa:is(
             fun(_) ->
-                    To = #ots_TableOptions{
+                    To = #ots_TableOptionsForCreateTable{
                             timeToLive = chrono:duration(0, sec)},
                     ots:validate(To)
             end,
@@ -113,10 +113,10 @@ cases() ->
                        errorCode = "OTSParameterInvalid",
                        message = "TimeToLive must be positive.",
                        requestId = ""}}),
-      "ut.TableOptions.MaxVersions_NonposiveMaxVersions" =>
+      "ut.TableOptionsForCreateTable.MaxVersions_NonposiveMaxVersions" =>
           testa:is(
             fun(_) ->
-                    To = #ots_TableOptions{
+                    To = #ots_TableOptionsForCreateTable{
                             maxVersions = 0},
                     ots:validate(To)
             end,
@@ -125,10 +125,10 @@ cases() ->
                        errorCode = "OTSParameterInvalid",
                        message = "MaxVersions must be positive.",
                        requestId = ""}}),
-      "ut.TableOptions.MaxTimeDeviation_Fractional" =>
+      "ut.TableOptionsForCreateTable.MaxTimeDeviation_Fractional" =>
           testa:is(
             fun(_) ->
-                    To = #ots_TableOptions{
+                    To = #ots_TableOptionsForCreateTable{
                             maxTimeDeviation = chrono:duration(1, usec)},
                     ots:validate(To)
             end,
@@ -137,10 +137,10 @@ cases() ->
                        errorCode = "OTSParameterInvalid",
                        message = "MaxTimeDeviation must be integral multiple of seconds.",
                        requestId = ""}}),
-      "ut.TableOptions.MaxTimeDeviation_Nonpositive" =>
+      "ut.TableOptionsForCreateTable.MaxTimeDeviation_Nonpositive" =>
           testa:is(
             fun(_) ->
-                    To = #ots_TableOptions{
+                    To = #ots_TableOptionsForCreateTable{
                             maxTimeDeviation = chrono:duration(0, sec)},
                     ots:validate(To)
             end,
@@ -157,7 +157,7 @@ cases() ->
                               schema = [#ots_PrimaryKeyColumnSchema{
                                            name = "pk",
                                            type = integer}]},
-                    Opts = #ots_TableOptions{
+                    Opts = #ots_TableOptionsForCreateTable{
                               reservedThroughput = #ots_CapacityUnit{write = 0},
                               timeToLive = chrono:duration(1, hour),
                               maxVersions = 1,
@@ -180,7 +180,7 @@ cases() ->
                               schema = [#ots_PrimaryKeyColumnSchema{
                                            name = "pk",
                                            type = integer}]},
-                    Opts = #ots_TableOptions{
+                    Opts = #ots_TableOptionsForCreateTable{
                               reservedThroughput = #ots_CapacityUnit{read = 0},
                               timeToLive = chrono:duration(1, hour),
                               maxVersions = 1,
@@ -203,7 +203,7 @@ cases() ->
                               schema = [#ots_PrimaryKeyColumnSchema{
                                            name = "pk",
                                            type = integer}]},
-                    Opts = #ots_TableOptions{
+                    Opts = #ots_TableOptionsForCreateTable{
                               reservedThroughput = #ots_CapacityUnit{
                                                       read = -1,
                                                       write = 0},
@@ -228,7 +228,7 @@ cases() ->
                               schema = [#ots_PrimaryKeyColumnSchema{
                                            name = "pk",
                                            type = integer}]},
-                    Opts = #ots_TableOptions{
+                    Opts = #ots_TableOptionsForCreateTable{
                               reservedThroughput = #ots_CapacityUnit{
                                                        read = 0,
                                                        write = -1},
